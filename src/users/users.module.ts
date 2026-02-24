@@ -6,7 +6,7 @@ import { UsersRepository } from './infrastructure/users.repository';
 import { User } from './domain/user.entity';
 import { USERS_REPOSITORY } from './domain/ports/users.repository.interface';
 import { HashService } from '../common/services/hash.service';
-import { RolesModule } from '../roles/roles.module';
+import { RolesModule } from 'src/roles/roles.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User]), RolesModule],

@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
   Query,
@@ -14,16 +15,23 @@ import { AddRoleToUserDto } from './dto/add-role-to-user.dto';
 import { FindUsersQueryDto } from './dto/find-users-query.dto';
 import { User } from '../domain/user.entity';
 import { PaginationMeta } from '../../common/utils/pagination.util';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get('me')
+  me(@CurrentUser() userId: string): Promise<User | null> {
+    return this.usersService.me(userId);
+  }
+
   @Get()
-  findUserAll(
+  async findUserAll(
     @Query() query: FindUsersQueryDto,
   ): Promise<{ data: User[]; meta: PaginationMeta }> {
-    return this.usersService.findUserAll(query);
+    const result = await this.usersService.findUserAll(query);
+    return result;
   }
 
   @Get(':id')

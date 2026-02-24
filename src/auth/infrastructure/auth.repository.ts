@@ -14,7 +14,7 @@ export class AuthRepository implements IAuthRepository {
   findByEmail(email: string): Promise<User | null> {
     return this.repository.findOne({
       where: { email },
-      select: ['id', 'email', 'password'],
+      select: ['id', 'email', 'firstName', 'lastName', 'approved', 'password'],
     });
   }
 

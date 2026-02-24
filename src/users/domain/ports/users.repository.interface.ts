@@ -2,6 +2,7 @@ import { FindManyOptions } from 'typeorm';
 import { User } from '../user.entity';
 
 export interface IUsersRepository {
+  me(id: string): Promise<User | null>;
   findOneByEmail(email: string): Promise<User | null>;
   findOneById(id: string): Promise<User | null>;
   findOneByIdWithRoles(id: string): Promise<User | null>;

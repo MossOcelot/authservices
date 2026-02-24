@@ -1,12 +1,12 @@
 import {
+  Body,
   HttpStatus,
   Inject,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '../../users/domain/user.entity';
 import { AuthEmailLoginDto } from '../presentation/dto/auth-email-login.dto';
 import { LoginResponseDto } from '../presentation/dto/login-response.dto';
 import { RegisterDto } from '../presentation/dto/register.dto';
@@ -24,17 +24,30 @@ export class AuthService {
     private readonly usersService: UsersService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<User> {
-    return this.usersService.createUser(registerDto);
+  async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
+    const user = await this.usersService.createUser(registerDto);
+    
+    const userInfo = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      approved: user.approved,
+    }
+
+    const accessToken = await this.jwtService.signAsync(userInfo, { expiresIn: '15m' });
+    const refreshToken = await this.jwtService.signAsync(userInfo, { expiresIn: '7d' });
+  
+    return { accessToken, refreshToken };
   }
 
   async validateLogin(loginDto: AuthEmailLoginDto): Promise<LoginResponseDto> {
     const user = await this.authRepository.findByEmail(loginDto.email);
 
     if (!user) {
-      throw new UnprocessableEntityException({
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: { email: 'notFound' },
+      throw new UnauthorizedException({
+        status: HttpStatus.UNAUTHORIZED,
+        errors: 'invalid username or password',
       });
     }
 
@@ -44,9 +57,9 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnprocessableEntityException({
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: { password: 'invalidPassword' },
+      throw new UnauthorizedException({
+        status: HttpStatus.UNAUTHORIZED,
+        errors: 'invalid username or password',
       });
     }
 
@@ -55,10 +68,18 @@ export class AuthService {
       lastLogin: new Date(),
     });
 
-    const payload = { sub: user.id, email: user.email };
-    const accessToken = await this.jwtService.signAsync(payload);
+    const userInfo = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      approved: user.approved,
+    }
 
-    return { email: user.email, accessToken };
+    const accessToken = await this.jwtService.signAsync(userInfo);
+
+    
+    return { accessToken, refreshToken: null   };
   }
 
   async logout(userId: string): Promise<void> {
@@ -67,13 +88,13 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException({
         status: HttpStatus.NOT_FOUND,
-        errors: { userId: 'userNotFound' },
+        errors: { userId: 'User not Found' },
       });
     }
 
     if (!user.isActive) {
-      throw new UnprocessableEntityException({
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
+      throw new UnauthorizedException({
+        status: HttpStatus.UNAUTHORIZED,
         errors: { userId: 'notLoggedIn' },
       });
     }
@@ -81,5 +102,35 @@ export class AuthService {
     await this.authRepository.updateUserAuthFields(userId, {
       isActive: false,
     });
+  }
+
+  async refresh(token: string): Promise<LoginResponseDto['accessToken']> {
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.usersService.findById(payload.sub);
+
+      if (!user) {
+        throw new NotFoundException({
+          status: HttpStatus.NOT_FOUND,
+          errors: { userId: 'User not Found' },
+        });
+      }
+
+      const userInfo = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        approved: user.approved,
+      };
+
+      const accessToken = await this.jwtService.signAsync(userInfo, { expiresIn: '15m' });
+      return accessToken;
+    } catch (error) {
+      throw new UnauthorizedException({
+        status: HttpStatus.UNAUTHORIZED,
+        errors: 'Invalid refresh token',
+      });
+    }
   }
 }

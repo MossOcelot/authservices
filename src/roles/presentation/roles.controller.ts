@@ -1,20 +1,7 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { RolesService } from '../application/roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
-import { UpdatePermissionInRoleDto } from './dto/update-permission-in-role.dto';
 import { FindRolesQueryDto } from './dto/find-roles-query.dto';
 import { Role } from '../domain/role.entity';
 import { PaginationMeta } from '../../common/utils/pagination.util';
@@ -24,14 +11,14 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Get()
-  findAll(
+  findRoleAll(
     @Query() query: FindRolesQueryDto,
   ): Promise<{ data: Role[]; meta: PaginationMeta }> {
     return this.rolesService.findAll(query);
   }
 
   @Get(':id')
-  findById(@Param('id') id: Role['id']): Promise<Role | null> {
+  getRoleById(@Param('id') id: Role['id']): Promise<Role | null> {
     return this.rolesService.findById(id);
   }
 
@@ -43,21 +30,12 @@ export class RolesController {
   @Patch(':id')
   updateRole(
     @Param('id') id: Role['id'],
-    @Body() dto: UpdateRoleDto,
+    @Body() updateRoleDto: UpdateRoleDto,
   ): Promise<Role> {
-    return this.rolesService.updateRole(id, dto);
+    return this.rolesService.updateRole(id, updateRoleDto);
   }
 
-  @Put(':id/permissions')
-  updatePermissionInRole(
-    @Param('id') id: Role['id'],
-    @Body() dto: UpdatePermissionInRoleDto,
-  ): Promise<Role> {
-    return this.rolesService.updatePermissionInRole(id, dto);
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @Patch(':id/remove')
   remove(@Param('id') id: Role['id']): Promise<void> {
     return this.rolesService.remove(id);
   }

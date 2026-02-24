@@ -27,6 +27,21 @@ export class UsersRepository implements IUsersRepository {
       .getOne();
   }
 
+  // async findOneByIdWithRole2(id: string) {
+  //   return await this.repository.findOne({
+  //     where: { id },
+  //     relations: { roles: true },
+  //     select: {
+  //       id: true,
+  //       email: true,
+  //       roles: {
+  //         id: true,
+  //         name: true,
+  //       },
+  //     }
+  //   })
+  // }
+
   findAndCount(options: FindManyOptions<User>): Promise<[User[], number]> {
     return this.repository.findAndCount(options);
   }
@@ -62,5 +77,12 @@ export class UsersRepository implements IUsersRepository {
 
   async softDelete(id: string): Promise<void> {
     await this.repository.softDelete({ id });
+  }
+
+  me(id: string): Promise<User | null> {
+    return this.repository.findOne({
+      where: { id },
+      select: ['id', 'email', 'firstName', 'lastName', 'approved'],
+    });
   }
 }

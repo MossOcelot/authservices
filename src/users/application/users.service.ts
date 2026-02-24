@@ -3,12 +3,14 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { User } from '../domain/user.entity';
 import { Role } from '../../roles/domain/role.entity';
 import { CreateUserDto } from '../presentation/dto/create-user.dto';
+import { UpdateUserDto } from '../presentation/dto/update-user.dto';
 import { FindUsersQueryDto } from '../presentation/dto/find-users-query.dto';
 import { buildFilterOptions } from '../../common/utils/filter.util';
 import {
@@ -66,6 +68,41 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
+  async me(userId: string): Promise<User | null> {
+    return this.usersRepository.me(userId);
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
+    const user = await this.usersRepository.findOneByIdWithRoles(id);
+    if (!user) {
+      throw new NotFoundException({
+        status: HttpStatus.NOT_FOUND,
+        errors: { userId: 'userNotFound' },
+      });
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.usersRepository.findOneByEmail(dto.email);
+      if (existing) {
+        throw new UnprocessableEntityException({
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: { email: 'emailAlreadyExists' },
+        });
+      }
+      user.email = dto.email;
+    }
+
+    if (dto.firstName !== undefined) user.firstName = dto.firstName;
+    if (dto.lastName !== undefined) user.lastName = dto.lastName;
+    if (dto.isActive !== undefined) user.isActive = dto.isActive;
+
+    if (dto.roleIds !== undefined) {
+      user.roles = await this.resolveRoles(dto.roleIds);
+    }
+
+    return this.usersRepository.save(user);
+  }
+
   async findByEmail(email: User['email']): Promise<User | null> {
     return this.usersRepository.findOneByEmail(email);
   }
@@ -90,8 +127,22 @@ export class UsersService {
       where,
       skip,
       take,
+      relations: {
+        roles: true,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        isActive: true,
+        approved: true,
+        roles: {
+          id: true,
+          name: true,
+        }, 
+      }
     });
-
     return { data, meta: buildPaginationMeta(total, page, limit) };
   }
 

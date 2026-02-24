@@ -20,9 +20,9 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
-  @ApiCreatedResponse({ type: User })
+  @ApiCreatedResponse({ type: LoginResponseDto })
   @Post('register')
-  register(@Body() registerDto: RegisterDto): Promise<User> {
+  register(@Body() registerDto: RegisterDto): Promise<LoginResponseDto> {
     return this.authService.register(registerDto);
   }
 
@@ -33,10 +33,19 @@ export class AuthController {
     return this.authService.validateLogin(loginDto);
   }
 
+
+  @Public()
   @ApiOkResponse({ description: 'Logged out successfully' })
   @Post('logout')
   logout(@Req() req: Request): Promise<void> {
-    const userId = (req['user'] as { sub: string }).sub;
+    const userId = (req['user'] as { id: string }).id;
     return this.authService.logout(userId);
+  }
+
+  @Public()
+  @ApiOkResponse({ type: LoginResponseDto })
+  @Post('refresh')
+  refresh(@Body('refreshToken') token: string): Promise<LoginResponseDto['accessToken']> {
+    return this.authService.refresh(token);
   }
 }

@@ -71,6 +71,35 @@ export class RolesService {
     if (dto.name !== undefined) role.name = dto.name;
     if (dto.description !== undefined) role.description = dto.description;
 
+    if (dto.permissionIds !== undefined) {
+      const action = dto.permissionAction ?? PermissionUpdateAction.REPLACE;
+      const roleWithPerms =
+        await this.rolesRepository.findOneByIdWithPermissions(role.id);
+      const currentPerms = roleWithPerms?.permissions ?? [];
+
+      switch (action) {
+        case PermissionUpdateAction.ADD: {
+          const permissions = await this.resolvePermissions(dto.permissionIds);
+          const existingIds = new Set(currentPerms.map((p) => p.id));
+          role.permissions = [
+            ...currentPerms,
+            ...permissions.filter((p) => !existingIds.has(p.id)),
+          ];
+          break;
+        }
+        case PermissionUpdateAction.REMOVE: {
+          const removeIds = new Set(dto.permissionIds);
+          role.permissions = currentPerms.filter((p) => !removeIds.has(p.id));
+          break;
+        }
+        case PermissionUpdateAction.REPLACE:
+        default: {
+          role.permissions = await this.resolvePermissions(dto.permissionIds);
+          break;
+        }
+      }
+    }
+
     return this.rolesRepository.save(role);
   }
 
@@ -138,6 +167,9 @@ export class RolesService {
       where,
       skip,
       take,
+      relations: {
+        permissions: true,
+      }
     });
 
     return { data, meta: buildPaginationMeta(total, page, limit) };
